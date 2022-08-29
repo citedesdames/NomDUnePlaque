@@ -1,0 +1,16 @@
+html{
+  font-family: 'Calibri', sans-serif;
+}
+
+#map {
+  width: 100%;
+  height: 500px;
+}
+
+#caption {
+  margin: 20px;
+}
+
+.explanations {
+  font-size: 0.8em;
+}

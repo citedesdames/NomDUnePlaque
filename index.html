@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nom d’une plaque !</title>
+  <link rel="icon" type="image/png" href="img/favicon.ico.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+    crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+    integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+    crossorigin=""></script>
+  <noscript>Pour utiliser pleinement cet outil, JavaScript est requis</noscript>
+</head>
+
+<body>
+  <!--
+Nom d'une plaque, pour repérer toutes les plaques de rues liées à une personne en France
+Copyright (C) 2022 Philippe Gambette
+
+Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le modifier suivant les termes de la GNU General Public License telle que publiée par la Free Software Foundation, soit la version 3 de la Licence, soit (à votre gré) toute version ultérieure.
+Ce programme est distribué dans l’espoir qu’il sera utile, mais SANS AUCUNE GARANTIE : sans même la garantie implicite de COMMERCIALISABILITÉ ni d’ADÉQUATION À UN OBJECTIF PARTICULIER. 
+Consultez la GNU General Public License pour plus de détails.
+Vous devriez avoir reçu une copie de la GNU General Public License avec ce programme ; si ce n’est pas le cas, consultez : <http://www.gnu.org/licenses/>.
+  -->
+  <div id="form-container">
+    <h1>Nom d’une plaque !</h1>
+    <p>Repérez toutes les plaques de rues liées à une personne en France.</p>
+    <input type="text" id="input-name" name="input-name" placeholder="Nom à rechercher.">
+    <button type="submit" id="search-name">Rechercher <i class="fas fa-search"></i></button>
+    <p><strong>[Outil expérimental, sous licence GPL (<a href="https://github.com/citedesdames/NomDUnePlaque">code source</a>), en cours de développement dans le cadre du projet de recherche <i><a
+            href="http://citedesdames.hypotheses.org/">Cité des dames, créatrices dans la cité</a></i> de l’université
+        Gustave Eiffel]</strong></p>
+  </div>
+  <div class="explanation">
+    Les données collectées proviennent de la <a href="https://adresse.data.gouv.fr/">Base Adresse Nationale</a>,
+    interrogée automatiquement, et en direct, à partir de son <a href="https://geo.api.gouv.fr/adresse">API</a>.
+    Il est possible que certaines voies correspondant à votre requête n’apparaissent pas dans les résultats en
+    raison :
+    <ol>
+      <li>d’une absence des données dans la base adresse nationale, par exemple pour des raisons de délai de mise à jour ;</li>
+      <li>de la limitation du nombre de résultats que ce site web demande à l’API (1000 seulement) d’autant plus que l’API réalise une recherche approximative qui renvoie des résultats ne contenant pas nécessairement le mot recherché ;</li>
+      <li>du filtre appliqué sur les résultats, pour n’afficher que les voies dont le nom contient le mot recherché (sans tenir compte de la casse).</li>
+    </ol>
+  </div>
+
+  <div id="map-container">
+    <h2>Les voies trouvées</h2>
+    <div id="caption"></div>
+    <div id="map"></div>
+    <h2>Résultats</h2>
+    <div>
+      <table class="results" id="results">
+      </table>
+    </div>
+    <h2>D’autres suggestions</h2>
+    <div id="suggestions"></div>
+  </div>
+
+  <script type="text/javascript">
+
+    function simplifyName(name) {
+      var thingsToDelete = ["Allee ", "Allée ", "Avenue ", "Boulevard ", "Chemin ", "Clos ", "Cours ", "Ferme ", "Galerie ", "Impasse ", "Jardin ", "Lotissement ", "Mail ", "Passage ", "Place ", "Placette ", "Plan ", "Quai ", "Quartier ", "Residence ", "Résidence ", "Rond-point ", "Route ", "Rue ", "Ruelle ", "Sente ", "Sentier ", "Square ", "Val ", "Venelle ", "Villa "];
+      var i = 0;
+      name = name.toLowerCase();
+      while (i < thingsToDelete.length) {
+        name = name.replace((thingsToDelete[i] + "du ").toLowerCase(), "")
+        name = name.replace((thingsToDelete[i] + "de ").toLowerCase(), "")
+        name = name.replace((thingsToDelete[i] + "des ").toLowerCase(), "")
+        name = name.replace((thingsToDelete[i] + "d'").toLowerCase(), "")
+        name = name.replace((thingsToDelete[i] + "d’").toLowerCase(), "")
+        name = name.replace(thingsToDelete[i].toLowerCase(), "")
+        i++;
+      }
+      return name;
+    }
+
+    function createHtmlIcon(color) {
+      // https://stackoverflow.com/questions/23567203/leaflet-changing-marker-color
+      return "<span style=\"background-color: " + color + "; width: 1rem; height: 1rem; display: block; left: -0.5rem; top: -0.5rem; position: relative; border-radius: 1rem 1rem 0; transform: rotate(45deg); border: 1px solid #FFFFFF\"></span>"
+    }
+
+    function createIcon(color) {
+      // https://stackoverflow.com/questions/23567203/leaflet-changing-marker-color
+      return L.divIcon({
+        className: "my-custom-pin",
+        iconAnchor: [0, 8],
+        labelAnchor: [-2, 0],
+        popupAnchor: [0, -12],
+        html: createHtmlIcon(color)
+      })
+    }
+
+    //Initialize page: hide map
+    document.querySelector("#map-container").style.display = "none";
+    var nomPersonne = "";
+    var map;
+    var suggestions = {};
+    var nbRecherches = 0;
+    var couleurs = ["black", "blue", "red", "green", "orange", "gray"]
+
+    // Detect click on search button
+    document.querySelector("#search-name").addEventListener("click", function () {
+      // 
+      zoomOk = false;
+      nbRecherches++;
+      nomPersonne = document.querySelector("#input-name").value;
+      document.querySelector("#caption").innerHTML += createHtmlIcon(couleurs[nbRecherches % couleurs.length]).replace("block", "inline-block") + " " + nomPersonne + "<br/>";
+
+      // Show Leaflet map
+      document.querySelector("#map-container").style.display = "block";
+      if (map == undefined) {
+        map = L.map("map").setView([48.8534, 2.3488], 5);
+        L.tileLayer("//{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
+          attribution: 'donn&eacute;es &copy; <a href="//osm.org/copyright">OpenStreetMap</a>/ODbL - rendu <a href="//openstreetmap.fr">OSM France</a>',
+          minZoom: 1,
+          maxZoom: 20
+        }).addTo(map);
+      }
+
+      // Get data from Base Adresse Nationale
+      fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURI(nomPersonne).replace("%20", "+") + "&limit=1000").then(function (response) {
+        return response.json().then(function (data) {
+          data.features.forEach(function (e) {
+            //console.log(e);
+            if (e.properties.name.toLowerCase().replace(nomPersonne.toLowerCase(), "").length < e.properties.name.toLowerCase().length) {
+              // This street name actually contains the searched name: display it on the map!
+              L.marker([e.geometry.coordinates[1], e.geometry.coordinates[0]], { icon: createIcon(couleurs[nbRecherches % couleurs.length]) }).addTo(map).bindPopup(e.properties.label);
+              document.querySelector("#results").innerHTML += "<tr><td>" + createHtmlIcon(couleurs[nbRecherches % couleurs.length]).replace("block", "inline-block") + " " + nomPersonne + "</td><td>" + e.properties.name + "</td><td>" + e.properties.postcode + "</td><td>" + e.properties.city + "</td><td>" + e.geometry.coordinates[0] + "</td><td>" + e.geometry.coordinates[1] + "</td><td>" + e.properties.id + "</td></tr>"
+            } else {
+              // This street name does not contain the searched name: add it to suggestions
+              var suggestion = simplifyName(e.properties.name);
+              if (suggestion in suggestions) {
+                suggestions[suggestion]++;
+              } else {
+                suggestions[suggestion] = 1;
+              }
+            }
+          })
+          document.querySelector("#suggestions").innerHTML = "";
+          // Sort suggestions by decreasing frequency
+          // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
+          var sortable = [];
+          for (var s in suggestions) {
+            sortable.push([s, suggestions[s]]);
+          }
+          //console.log(sortable);
+          sortable.sort(function (a, b) {
+            return b[1] - a[1];
+          });
+          var i = 0;
+          while (i < sortable.length) {
+            document.querySelector("#suggestions").innerHTML += (sortable[i][0] + "<br>");
+            i++;
+          }
+        })
+      });
+    })
+  </script>
+</body>
+
+</html>
