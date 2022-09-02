@@ -14,3 +14,8 @@ html{
 .explanations {
   font-size: 0.8em;
 }
+
+#results td,th{
+  border: 1px solid lightgrey;
+  text-align: center;
+}

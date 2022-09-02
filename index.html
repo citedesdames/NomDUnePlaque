@@ -18,7 +18,7 @@
 
 <body>
   <!--
-Nom d'une plaque, pour repérer toutes les plaques de rues liées à une personne en France
+Nom d’une plaque, pour repérer toutes les plaques de rues liées à une personne en France
 Copyright (C) 2022 Philippe Gambette
 
 Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le modifier suivant les termes de la GNU General Public License telle que publiée par la Free Software Foundation, soit la version 3 de la Licence, soit (à votre gré) toute version ultérieure.
@@ -31,9 +31,8 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
     <p>Repérez toutes les plaques de rues liées à une personne en France.</p>
     <input type="text" id="input-name" name="input-name" placeholder="Nom à rechercher.">
     <button type="submit" id="search-name">Rechercher <i class="fas fa-search"></i></button>
-    <p><strong>[Outil expérimental, sous licence GPL (<a href="https://github.com/citedesdames/NomDUnePlaque">code source</a>), en cours de développement dans le cadre du projet de recherche <i><a
-            href="http://citedesdames.hypotheses.org/">Cité des dames, créatrices dans la cité</a></i> de l’université
-        Gustave Eiffel]</strong></p>
+    <p><strong>[Outil expérimental, sous licence GPL (<a target="_blank" href="https://github.com/citedesdames/NomDUnePlaque">code source</a>), en cours de développement dans le cadre du projet de recherche 
+       <i><a target="_blank" href="http://citedesdames.hypotheses.org/">Cité des dames, créatrices dans la cité</a></i> de l’université Gustave Eiffel]</strong></p>
   </div>
   <div class="explanation">
     Les données collectées proviennent de la <a href="https://adresse.data.gouv.fr/">Base Adresse Nationale</a>,
@@ -46,6 +45,10 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
       <li>du filtre appliqué sur les résultats, pour n’afficher que les voies dont le nom contient le mot recherché (sans tenir compte de la casse).</li>
     </ol>
   </div>
+  <div class="explanation">
+  Quant aux années indiquées, il s’agit de celles extraites du <a target="_blank" href="https://www.collectivites-locales.gouv.fr/competences/la-mise-disposition-gratuite-du-fichier-des-voies-et-des-lieux-dits-fantoir">fichier des voies et lieux-dits (FANTOIR)</a>
+  téléchargé le 22 août 2022 et prétraité pour extraire les années autres que 0000 et 1987 associées à toutes les voies ne commençant pas par «&nbsp;d’&nbsp;», «&nbsp;de&nbsp;», «&nbsp;du&nbsp;» ou «&nbsp;des&nbsp;».
+  </div>
 
   <div id="map-container">
     <h2>Les voies trouvées</h2>
@@ -54,6 +57,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
     <h2>Résultats</h2>
     <div>
       <table class="results" id="results">
+      <tr><th>Nom recherché</th><th>Nom de la voie</th><th>Code postal</th><th>Ville</th><th>Latitude</th><th>Longitude</th><th>Identifiant de la voie</th><th>Année d’après <a href="https://www.collectivites-locales.gouv.fr/competences/la-mise-disposition-gratuite-du-fichier-des-voies-et-des-lieux-dits-fantoir">FANTOIR</a></th></tr>
       </table>
     </div>
     <h2>D’autres suggestions</h2>
@@ -61,7 +65,38 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
   </div>
 
   <script type="text/javascript">
-
+    "use strict";
+    let idList = [];
+    let foundIds = {};
+    
+    // Take the first id of the list idList and get the corresponding data file
+    function findNextYear() {
+      let notFound = true;
+      if(idList.length >0){
+        let fantoirId = idList.pop();
+        console.log(fantoirId);
+        fetch("data/" + fantoirId.substring(0,2) + "/" + fantoirId.substring(0,5) + ".json").then(function (response) {
+          if(!response.ok){
+            findNextYear();
+          }
+          return response.text().then(function (data) {
+            let lines = data.split("\n");
+            lines.forEach(function(l){
+              if(fantoirId.substring(6,fantoirId.length) == l.substring(4,8)){
+                //console.log("trouvé !" + l.substring(4,8))
+                document.querySelector("#f" + fantoirId + " td:last-child").innerHTML = l.substring(0,4);
+                notFound = false;
+              }
+            });
+            if(notFound){
+              document.querySelector("#f" + fantoirId + " td:last-child").innerHTML = '<a target="_blank" href="data/' + fantoirId.substring(0,2) + '/' + fantoirId.substring(0,5) + '.json">?</a>';
+            }
+            findNextYear();
+          });
+        });
+      }
+    }
+    
     function simplifyName(name) {
       var thingsToDelete = ["Allee ", "Allée ", "Avenue ", "Boulevard ", "Chemin ", "Clos ", "Cours ", "Ferme ", "Galerie ", "Impasse ", "Jardin ", "Lotissement ", "Mail ", "Passage ", "Place ", "Placette ", "Plan ", "Quai ", "Quartier ", "Residence ", "Résidence ", "Rond-point ", "Route ", "Rue ", "Ruelle ", "Sente ", "Sentier ", "Square ", "Val ", "Venelle ", "Villa "];
       var i = 0;
@@ -104,8 +139,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
 
     // Detect click on search button
     document.querySelector("#search-name").addEventListener("click", function () {
-      // 
-      zoomOk = false;
+      // Add caption
       nbRecherches++;
       nomPersonne = document.querySelector("#input-name").value;
       document.querySelector("#caption").innerHTML += createHtmlIcon(couleurs[nbRecherches % couleurs.length]).replace("block", "inline-block") + " " + nomPersonne + "<br/>";
@@ -126,10 +160,12 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
         return response.json().then(function (data) {
           data.features.forEach(function (e) {
             //console.log(e);
-            if (e.properties.name.toLowerCase().replace(nomPersonne.toLowerCase(), "").length < e.properties.name.toLowerCase().length) {
-              // This street name actually contains the searched name: display it on the map!
+            if (!(e.properties.id in foundIds) && (e.properties.name.toLowerCase().replace(nomPersonne.toLowerCase(), "").length < e.properties.name.toLowerCase().length)) {
+              // This street name actually contains the searched name and its id has not yet been found: display it on the map!
               L.marker([e.geometry.coordinates[1], e.geometry.coordinates[0]], { icon: createIcon(couleurs[nbRecherches % couleurs.length]) }).addTo(map).bindPopup(e.properties.label);
-              document.querySelector("#results").innerHTML += "<tr><td>" + createHtmlIcon(couleurs[nbRecherches % couleurs.length]).replace("block", "inline-block") + " " + nomPersonne + "</td><td>" + e.properties.name + "</td><td>" + e.properties.postcode + "</td><td>" + e.properties.city + "</td><td>" + e.geometry.coordinates[0] + "</td><td>" + e.geometry.coordinates[1] + "</td><td>" + e.properties.id + "</td></tr>"
+              document.querySelector("#results").innerHTML += "<tr id=\"f" + e.properties.id + "\"><td>" + createHtmlIcon(couleurs[nbRecherches % couleurs.length]).replace("block", "inline-block") + " " + nomPersonne + "</td><td>" + e.properties.name + "</td><td>" + e.properties.postcode + "</td><td>" + e.properties.city + "</td><td>" + e.geometry.coordinates[0] + "</td><td>" + e.geometry.coordinates[1] + "</td><td>" + e.properties.id + "</td><td></td></tr>"
+              idList.push(e.properties.id);
+              foundIds[e.properties.id] = 0;
             } else {
               // This street name does not contain the searched name: add it to suggestions
               var suggestion = simplifyName(e.properties.name);
@@ -156,6 +192,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
             document.querySelector("#suggestions").innerHTML += (sortable[i][0] + "<br>");
             i++;
           }
+          findNextYear();
         })
       });
     })
