@@ -41,7 +41,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
     raison :
     <ol>
       <li>d’une absence des données dans la base adresse nationale, par exemple pour des raisons de délai de mise à jour ;</li>
-      <li>de la limitation du nombre de résultats que ce site web demande à l’API (1000 seulement) d’autant plus que l’API réalise une recherche approximative qui renvoie des résultats ne contenant pas nécessairement le mot recherché ;</li>
+      <li>de la limitation du nombre de résultats que ce site web demande à l’API (100 seulement) d’autant plus que l’API réalise une recherche approximative qui renvoie des résultats ne contenant pas nécessairement le mot recherché ;</li>
       <li>du filtre appliqué sur les résultats, pour n’afficher que les voies dont le nom contient le mot recherché (sans tenir compte de la casse).</li>
     </ol>
   </div>
@@ -156,7 +156,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
       }
 
       // Get data from Base Adresse Nationale
-      fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURI(nomPersonne).replace("%20", "+") + "&limit=1000").then(function (response) {
+      fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURI(nomPersonne).replace("%20", "+") + "&limit=100").then(function (response) {
         return response.json().then(function (data) {
           data.features.forEach(function (e) {
             //console.log(e);
