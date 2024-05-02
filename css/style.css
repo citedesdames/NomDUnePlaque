@@ -4,7 +4,7 @@ html{
 
 #map {
   width: 100%;
-  height: 500px;
+  height: 750px;
 }
 
 #caption {
@@ -18,4 +18,11 @@ html{
 #results td,th{
   border: 1px solid lightgrey;
   text-align: center;
+}
+
+#container{
+  margin:auto;
+  padding:1em;
+  background-color:lightgray;
+  max-width:800px;
 }

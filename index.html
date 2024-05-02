@@ -17,6 +17,7 @@
 </head>
 
 <body>
+  <div id="container">
   <!--
 Nom d’une plaque, pour repérer toutes les plaques de rues liées à une personne en France
 Copyright (C) 2022 Philippe Gambette
@@ -29,6 +30,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
   <div id="form-container">
     <h1>Nom d’une plaque !</h1>
     <p>Repérez toutes les plaques de rues liées à une personne en France.</p>
+    Nom recherché :
     <input type="text" id="input-name" name="input-name" placeholder="Nom à rechercher.">
     <button type="submit" id="search-name">Rechercher <i class="fas fa-search"></i></button>
     <p><strong>[Outil expérimental, sous licence GPL (<a target="_blank" href="https://github.com/citedesdames/NomDUnePlaque">code source</a>), développé dans le cadre du projet de recherche 
@@ -197,6 +199,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
       });
     })
   </script>
+  </div>
 </body>
 
 </html>
