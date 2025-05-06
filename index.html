@@ -158,7 +158,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
       }
 
       // Get data from Base Adresse Nationale
-      fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURI(nomPersonne).replace("%20", "+") + "&limit=100").then(function (response) {
+      fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURI(nomPersonne).replace("%20", "+") + "&limit=50").then(function (response) {
         return response.json().then(function (data) {
           data.features.forEach(function (e) {
             //console.log(e);
